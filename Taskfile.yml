@@ -1,0 +1,12 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - go build -o doh
+  clean:
+    cmds:
+      - rm -f doh
+  lint:
+    cmds:
+      - golangci-lint run
