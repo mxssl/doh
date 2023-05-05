@@ -9,14 +9,11 @@ builds:
     - darwin
   goarch:
     - amd64
+    - arm64
 archives:
   - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
     files:
     - none*
-    replacements:
-      darwin: darwin
-      linux: linux
-      amd64: x86_64
 checksum:
   name_template: 'checksums.txt'
 snapshot:
