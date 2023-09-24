@@ -42,6 +42,9 @@ func Whois(domain string) (string, error) {
 		if strings.HasPrefix(line, "OrgName:") {
 			return strings.TrimSpace(strings.TrimPrefix(line, "OrgName:")), nil
 		}
+		if strings.HasPrefix(line, "org-name:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "org-name:")), nil
+		}
 	}
 	return "", fmt.Errorf("OrgName not found in WHOIS lookup result")
 }

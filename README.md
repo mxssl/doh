@@ -7,7 +7,7 @@ Simple DNS over HTTPS cli client for cloudflare
 ### Linux
 
 ```bash
-wget https://github.com/mxssl/doh/releases/download/v0.0.8/doh_linux_amd64.tar.gz
+wget https://github.com/mxssl/doh/releases/download/v0.0.9/doh_linux_amd64.tar.gz
 tar zvxf doh_linux_amd64.tar.gz
 mv doh /usr/local/bin/doh
 chmod +x /usr/local/bin/doh
@@ -17,7 +17,7 @@ rm doh_linux_amd64.tar.gz
 ### MacOS amd64
 
 ```bash
-wget https://github.com/mxssl/doh/releases/download/v0.0.8/doh_darwin_amd64.tar.gz
+wget https://github.com/mxssl/doh/releases/download/v0.0.9/doh_darwin_amd64.tar.gz
 tar zvxf doh_darwin_amd64.tar.gz
 mv doh /usr/local/bin/doh
 chmod +x /usr/local/bin/doh
@@ -27,7 +27,7 @@ rm doh_darwin_amd64.tar.gz
 ### MacOS arm64 (Apple Silicon)
 
 ```bash
-wget https://github.com/mxssl/doh/releases/download/v0.0.8/doh_darwin_arm64.tar.gz
+wget https://github.com/mxssl/doh/releases/download/v0.0.9/doh_darwin_arm64.tar.gz
 tar zvxf doh_darwin_arm64.tar.gz
 mv doh /usr/local/bin/doh
 chmod +x /usr/local/bin/doh
@@ -43,8 +43,8 @@ go install github.com/mxssl/doh@latest
 ### Docker
 
 ```bash
-docker pull mxssl/doh:v0.0.8
-docker container run --rm mxssl/doh:v0.0.8 doh a google.com
+docker pull mxssl/doh:v0.0.9
+docker container run --rm mxssl/doh:v0.0.9 doh a google.com
 ```
 
 ## Usage
