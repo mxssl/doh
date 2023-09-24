@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/fatih/color"
+	"github.com/likexian/whois"
 )
 
 type dohRespose struct {
@@ -29,6 +31,20 @@ type dohRespose struct {
 }
 
 var dohURL = "https://cloudflare-dns.com/dns-query"
+
+func Whois(domain string) (string, error) {
+	result, err := whois.Whois(domain)
+	if err != nil {
+		return "", err
+	}
+	lines := strings.Split(result, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "OrgName:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "OrgName:")), nil
+		}
+	}
+	return "", fmt.Errorf("OrgName not found in WHOIS lookup result")
+}
 
 func Do(queryType string, domain string) {
 	url := fmt.Sprintf("%s?name=%s&type=%s", dohURL, domain, queryType)
@@ -84,6 +100,12 @@ func Do(queryType string, domain string) {
 		fmt.Printf("%s: %v\n", blue("type"), green(r.Type))
 		fmt.Printf("%s: %v\n", blue("ttl"), green(r.TTL))
 		fmt.Printf("%s: %v\n", blue("data"), green(r.Data))
+
+		whois, err := Whois(r.Data)
+		if err == nil && whois != "" {
+			fmt.Printf("%s: %v\n", blue("whois"), green(whois))
+		}
+
 		fmt.Println()
 	}
 }
