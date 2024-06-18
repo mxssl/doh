@@ -6,5 +6,5 @@ COPY . .
 RUN CGO_ENABLED=0 \
   go build -v -o doh
 
-FROM alpine:3.19
+FROM alpine:3.20
 COPY --from=builder /app/doh /usr/local/bin/doh
