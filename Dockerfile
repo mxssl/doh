@@ -1,4 +1,4 @@
-FROM golang:1.21.5-alpine3.17 as builder
+FROM golang:1.24.4-alpine3.22 as builder
 
 WORKDIR /app
 COPY . .
@@ -6,5 +6,5 @@ COPY . .
 RUN CGO_ENABLED=0 \
   go build -v -o doh
 
-FROM alpine:3.21
+FROM alpine:3.22
 COPY --from=builder /app/doh /usr/local/bin/doh

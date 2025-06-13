@@ -10,3 +10,6 @@ tasks:
   lint:
     cmds:
       - golangci-lint run
+  update-deps:
+    cmds:
+      - go get -u ./...

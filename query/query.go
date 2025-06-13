@@ -65,7 +65,11 @@ func Do(queryType string, domain string) {
 		fmt.Printf("request do error: %v\n", err)
 		return
 	}
-	defer response.Body.Close()
+	defer func() {
+		if err := response.Body.Close(); err != nil {
+			fmt.Printf("failed to close response body: %v\n", err)
+		}
+	}()
 
 	content, err := io.ReadAll(response.Body)
 	if err != nil {
