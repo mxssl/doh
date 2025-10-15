@@ -1,17 +1,19 @@
 package query
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/likexian/whois"
 )
 
-type dohRespose struct {
+type dohResponse struct {
 	Status   int  `json:"Status"`
 	Tc       bool `json:"TC"`
 	Rd       bool `json:"RD"`
@@ -32,6 +34,12 @@ type dohRespose struct {
 
 var dohURL = "https://cloudflare-dns.com/dns-query"
 
+// DNS record types that contain IP addresses suitable for WHOIS lookup
+var ipRecordTypes = map[int]bool{
+	1:  true, // A record
+	28: true, // AAAA record
+}
+
 func Whois(domain string) (string, error) {
 	result, err := whois.Whois(domain)
 	if err != nil {
@@ -49,21 +57,22 @@ func Whois(domain string) (string, error) {
 	return "", fmt.Errorf("OrgName not found in WHOIS lookup result")
 }
 
-func Do(queryType string, domain string) {
+func Do(queryType string, domain string) error {
 	url := fmt.Sprintf("%s?name=%s&type=%s", dohURL, domain, queryType)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		fmt.Printf("new request error: %v\n", err)
-		return
+		return fmt.Errorf("new request error: %w", err)
 	}
 
 	req.Header.Set("accept", "application/dns-json")
 
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
-		fmt.Printf("request do error: %v\n", err)
-		return
+		return fmt.Errorf("request do error: %w", err)
 	}
 	defer func() {
 		if err := response.Body.Close(); err != nil {
@@ -73,31 +82,25 @@ func Do(queryType string, domain string) {
 
 	content, err := io.ReadAll(response.Body)
 	if err != nil {
-		fmt.Printf("read body error: %v\n", err)
-		return
+		return fmt.Errorf("read body error: %w", err)
 	}
 
 	if response.StatusCode != http.StatusOK {
-		fmt.Println("Error response status:", response.Status)
-		fmt.Println("Error text:", string(content))
-		return
+		return fmt.Errorf("error response status: %s, body: %s", response.Status, string(content))
 	}
 
-	var res dohRespose
+	var res dohResponse
 	if err := json.Unmarshal(content, &res); err != nil {
-		fmt.Printf("unmarshal error: %v\n", err)
-		return
+		return fmt.Errorf("unmarshal error: %w", err)
 	}
 
 	if res.Status != 0 {
-		fmt.Println("rcode:", res.Status)
-		fmt.Println("You can check rcode here: https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6")
-		return
+		return fmt.Errorf("rcode: %d, check https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6", res.Status)
 	}
 
 	if res.Answer == nil {
 		fmt.Println("There is no such DNS record")
-		return
+		return nil
 	}
 
 	green := color.New(color.FgGreen).SprintFunc()
@@ -108,11 +111,15 @@ func Do(queryType string, domain string) {
 		fmt.Printf("%s: %v\n", blue("ttl"), green(r.TTL))
 		fmt.Printf("%s: %v\n", blue("data"), green(r.Data))
 
-		whois, err := Whois(r.Data)
-		if err == nil && whois != "" {
-			fmt.Printf("%s: %v\n", blue("whois"), green(whois))
+		// Only perform WHOIS lookup for IP address records (A and AAAA)
+		if ipRecordTypes[r.Type] {
+			whois, err := Whois(r.Data)
+			if err == nil && whois != "" {
+				fmt.Printf("%s: %v\n", blue("whois"), green(whois))
+			}
 		}
 
 		fmt.Println()
 	}
+	return nil
 }

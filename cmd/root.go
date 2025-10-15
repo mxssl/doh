@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/mxssl/doh/query"
@@ -13,7 +14,11 @@ var rootCmd = &cobra.Command{
 	Short: "Simple DNS over HTTPS cli client for cloudflare",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		query.Do(args[0], args[1])
+		err := query.Do(args[0], args[1])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
 	},
 }
 
