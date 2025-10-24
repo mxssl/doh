@@ -50,13 +50,29 @@ docker container run --rm mxssl/doh:v0.0.12 doh a google.com
 ## Usage
 
 ```bash
-doh [query type] [domain name]
+doh [flags] [query type] [domain name]
 ```
 
-## Example
+### Flags
+
+- `--whois` - Perform WHOIS lookup for IP addresses (A and AAAA records)
+
+## Examples
+
+### Basic DNS query (without WHOIS)
 
 ```bash
 $ doh a google.com
+name: google.com
+type: 1
+ttl: 291
+data: 142.250.200.78
+```
+
+### DNS query with WHOIS lookup
+
+```bash
+$ doh a google.com --whois
 name: google.com
 type: 1
 ttl: 291

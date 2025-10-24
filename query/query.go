@@ -60,7 +60,7 @@ func Whois(domain string) (string, error) {
 	return "", fmt.Errorf("OrgName not found in WHOIS lookup result")
 }
 
-func Do(queryType string, domain string) error {
+func Do(queryType string, domain string, enableWhois bool) error {
 	url := fmt.Sprintf("%s?name=%s&type=%s", dohURL, domain, queryType)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -114,8 +114,8 @@ func Do(queryType string, domain string) error {
 		fmt.Printf("%s: %v\n", blue("ttl"), green(r.TTL))
 		fmt.Printf("%s: %v\n", blue("data"), green(r.Data))
 
-		// Only perform WHOIS lookup for IP address records (A and AAAA)
-		if ipRecordTypes[r.Type] {
+		// Only perform WHOIS lookup for IP address records (A and AAAA) if enabled
+		if enableWhois && ipRecordTypes[r.Type] {
 			whois, err := Whois(r.Data)
 			if err == nil && whois != "" {
 				fmt.Printf("%s: %v\n", blue("whois"), green(whois))
