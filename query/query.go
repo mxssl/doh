@@ -41,7 +41,10 @@ var ipRecordTypes = map[int]bool{
 }
 
 func Whois(domain string) (string, error) {
-	result, err := whois.Whois(domain)
+	client := whois.NewClient()
+	client.SetTimeout(5 * time.Second)
+
+	result, err := client.Whois(domain)
 	if err != nil {
 		return "", err
 	}
