@@ -9,7 +9,7 @@ Simple DNS over HTTPS cli client for cloudflare
 ```bash
 curl -LO https://github.com/mxssl/doh/releases/download/v0.0.14/doh_linux_amd64.tar.gz
 tar zvxf doh_linux_amd64.tar.gz
-mv doh /usr/local/bin/doh
+sudo mv doh /usr/local/bin/doh
 rm doh_linux_amd64.tar.gz
 ```
 
@@ -18,7 +18,7 @@ rm doh_linux_amd64.tar.gz
 ```bash
 curl -LO https://github.com/mxssl/doh/releases/download/v0.0.14/doh_linux_arm64.tar.gz
 tar zvxf doh_linux_arm64.tar.gz
-mv doh /usr/local/bin/doh
+sudo mv doh /usr/local/bin/doh
 rm doh_linux_arm64.tar.gz
 ```
 
@@ -27,7 +27,7 @@ rm doh_linux_arm64.tar.gz
 ```bash
 curl -LO https://github.com/mxssl/doh/releases/download/v0.0.14/doh_darwin_arm64.tar.gz
 tar zvxf doh_darwin_arm64.tar.gz
-mv doh /usr/local/bin/doh
+sudo mv doh /usr/local/bin/doh
 rm doh_darwin_arm64.tar.gz
 ```
 
