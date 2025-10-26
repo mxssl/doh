@@ -7,7 +7,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var whoisFlag bool
+var (
+	whoisFlag bool
+	appVersion string
+	appCommit  string
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -25,7 +29,9 @@ func init() {
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
-func Execute() {
+func Execute(version, commit string) {
+	appVersion = version
+	appCommit = commit
 	rootCmd.SetUsageTemplate("Usage:\n  doh [flags] [query type] [domain name]\n\nFlags:\n{{.LocalFlags.FlagUsages}}")
 	err := rootCmd.Execute()
 	if err != nil {
