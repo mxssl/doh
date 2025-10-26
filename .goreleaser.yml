@@ -55,14 +55,3 @@ changelog:
 metadata:
   mod_timestamp: "{{ .CommitTimestamp }}"
 
-# Release settings
-release:
-  github:
-    owner: mxssl
-    name: doh
-  draft: false
-  prerelease: auto
-  mode: replace
-  header: |
-    ## DoH {{ .Tag }} ({{ .Date }})
-
