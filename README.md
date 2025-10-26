@@ -4,33 +4,30 @@ Simple DNS over HTTPS cli client for cloudflare
 
 ## Install
 
-### Linux
+### Linux amd64
 
 ```bash
-wget https://github.com/mxssl/doh/releases/download/v0.0.14/doh_linux_amd64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.14/doh_linux_amd64.tar.gz
 tar zvxf doh_linux_amd64.tar.gz
-mv doh /usr/local/bin/doh
-chmod +x /usr/local/bin/doh
+sudo mv doh /usr/local/bin/doh
 rm doh_linux_amd64.tar.gz
 ```
 
-### MacOS amd64
+### Linux arm64
 
 ```bash
-wget https://github.com/mxssl/doh/releases/download/v0.0.14/doh_darwin_amd64.tar.gz
-tar zvxf doh_darwin_amd64.tar.gz
-mv doh /usr/local/bin/doh
-chmod +x /usr/local/bin/doh
-rm doh_darwin_amd64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.14/doh_linux_arm64.tar.gz
+tar zvxf doh_linux_arm64.tar.gz
+sudo mv doh /usr/local/bin/doh
+rm doh_linux_arm64.tar.gz
 ```
 
 ### MacOS arm64 (Apple Silicon)
 
 ```bash
-wget https://github.com/mxssl/doh/releases/download/v0.0.14/doh_darwin_arm64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.14/doh_darwin_arm64.tar.gz
 tar zvxf doh_darwin_arm64.tar.gz
-mv doh /usr/local/bin/doh
-chmod +x /usr/local/bin/doh
+sudo mv doh /usr/local/bin/doh
 rm doh_darwin_arm64.tar.gz
 ```
 
