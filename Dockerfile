@@ -25,7 +25,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     -trimpath \
     -o doh
 
-FROM alpine:3.22
+FROM alpine:3.23
 
 WORKDIR /app
 
