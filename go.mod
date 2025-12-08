@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/fatih/color v1.18.0
 	github.com/likexian/whois v1.15.6
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 )
 
 require (
