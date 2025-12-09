@@ -121,8 +121,6 @@ func Do(queryType string, domain string, enableWhois bool) error {
 				fmt.Printf("%s: %v\n", blue("whois"), green(whois))
 			}
 		}
-
-		fmt.Println()
 	}
 	return nil
 }
