@@ -7,7 +7,7 @@ Simple DNS over HTTPS cli client for cloudflare
 ### Linux amd64
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.17/doh_linux_amd64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.18/doh_linux_amd64.tar.gz
 tar zvxf doh_linux_amd64.tar.gz
 sudo mv doh /usr/local/bin/doh
 rm doh_linux_amd64.tar.gz
@@ -16,7 +16,7 @@ rm doh_linux_amd64.tar.gz
 ### Linux arm64
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.17/doh_linux_arm64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.18/doh_linux_arm64.tar.gz
 tar zvxf doh_linux_arm64.tar.gz
 sudo mv doh /usr/local/bin/doh
 rm doh_linux_arm64.tar.gz
@@ -25,7 +25,7 @@ rm doh_linux_arm64.tar.gz
 ### MacOS arm64 (Apple Silicon)
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.17/doh_darwin_arm64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.18/doh_darwin_arm64.tar.gz
 tar zvxf doh_darwin_arm64.tar.gz
 sudo mv doh /usr/local/bin/doh
 rm doh_darwin_arm64.tar.gz
@@ -40,8 +40,8 @@ go install github.com/mxssl/doh@latest
 ### Docker
 
 ```bash
-docker pull mxssl/doh:v0.0.17
-docker container run --rm mxssl/doh:v0.0.17 a google.com
+docker pull mxssl/doh:v0.0.18
+docker container run --rm mxssl/doh:v0.0.18 a google.com
 ```
 
 ## Usage
@@ -53,6 +53,7 @@ doh [flags] [query type] [domain name]
 ### Flags
 
 - `--whois` - Perform WHOIS lookup for IP addresses (A and AAAA records)
+- `--json` - Output results in JSON format
 
 ## Examples
 
@@ -75,4 +76,37 @@ type: 1
 ttl: 291
 data: 142.250.200.78
 whois: Google LLC
+```
+
+### JSON output
+
+```bash
+$ doh --json a google.com
+{
+  "records": [
+    {
+      "name": "google.com",
+      "type": 1,
+      "ttl": 115,
+      "data": "142.251.36.14"
+    }
+  ]
+}
+```
+
+### JSON output with WHOIS
+
+```bash
+$ doh --json --whois a google.com
+{
+  "records": [
+    {
+      "name": "google.com",
+      "type": 1,
+      "ttl": 47,
+      "data": "142.250.179.206",
+      "whois": "Google LLC"
+    }
+  ]
+}
 ```
