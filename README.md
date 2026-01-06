@@ -1,13 +1,13 @@
 # doh
 
-Simple DNS over HTTPS cli client for cloudflare
+Simple DNS over HTTPS cli client
 
 ## Install
 
 ### Linux amd64
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.18/doh_linux_amd64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.19/doh_linux_amd64.tar.gz
 tar zvxf doh_linux_amd64.tar.gz
 sudo mv doh /usr/local/bin/doh
 rm doh_linux_amd64.tar.gz
@@ -16,7 +16,7 @@ rm doh_linux_amd64.tar.gz
 ### Linux arm64
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.18/doh_linux_arm64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.19/doh_linux_arm64.tar.gz
 tar zvxf doh_linux_arm64.tar.gz
 sudo mv doh /usr/local/bin/doh
 rm doh_linux_arm64.tar.gz
@@ -25,7 +25,7 @@ rm doh_linux_arm64.tar.gz
 ### MacOS arm64 (Apple Silicon)
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.18/doh_darwin_arm64.tar.gz
+curl -LO https://github.com/mxssl/doh/releases/download/v0.0.19/doh_darwin_arm64.tar.gz
 tar zvxf doh_darwin_arm64.tar.gz
 sudo mv doh /usr/local/bin/doh
 rm doh_darwin_arm64.tar.gz
@@ -40,8 +40,8 @@ go install github.com/mxssl/doh@latest
 ### Docker
 
 ```bash
-docker pull mxssl/doh:v0.0.18
-docker container run --rm mxssl/doh:v0.0.18 a google.com
+docker pull mxssl/doh:v0.0.19
+docker container run --rm mxssl/doh:v0.0.19 a google.com
 ```
 
 ## Usage
@@ -54,6 +54,7 @@ doh [flags] [query type] [domain name]
 
 - `--whois` - Perform WHOIS lookup for IP addresses (A and AAAA records)
 - `--json` - Output results in JSON format
+- `--provider` - DNS-over-HTTPS provider: `cloudflare` (default) or `google`
 
 ## Examples
 
@@ -65,6 +66,16 @@ name: google.com
 type: 1
 ttl: 291
 data: 142.250.200.78
+```
+
+### Using Google DNS provider
+
+```bash
+$ doh a google.com --provider google
+name: google.com.
+type: 1
+ttl: 300
+data: 142.250.184.14
 ```
 
 ### DNS query with WHOIS lookup

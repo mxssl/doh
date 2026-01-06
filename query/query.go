@@ -47,7 +47,32 @@ type DNSRecord struct {
 	Whois string `json:"whois,omitempty"`
 }
 
-var dohURL = "https://cloudflare-dns.com/dns-query"
+// Provider URLs for DNS-over-HTTPS
+var providerURLs = map[string]string{
+	"cloudflare": "https://cloudflare-dns.com/dns-query",
+	"google":     "https://dns.google/resolve",
+}
+
+// DefaultProvider is the default DoH provider
+const DefaultProvider = "cloudflare"
+
+// ValidProviders returns a list of valid provider names
+func ValidProviders() []string {
+	providers := make([]string, 0, len(providerURLs))
+	for p := range providerURLs {
+		providers = append(providers, p)
+	}
+	return providers
+}
+
+// GetProviderURL returns the DoH URL for the given provider
+func GetProviderURL(provider string) (string, error) {
+	url, ok := providerURLs[provider]
+	if !ok {
+		return "", fmt.Errorf("unknown provider: %s (valid providers: cloudflare, google)", provider)
+	}
+	return url, nil
+}
 
 // DNS record types that contain IP addresses suitable for WHOIS lookup
 var ipRecordTypes = map[int]bool{
@@ -97,7 +122,11 @@ func outputJSON(records []DNSRecord) error {
 	return nil
 }
 
-func Do(queryType string, domain string, enableWhois bool, enableJSON bool) error {
+func Do(queryType string, domain string, enableWhois bool, enableJSON bool, provider string) error {
+	dohURL, err := GetProviderURL(provider)
+	if err != nil {
+		return err
+	}
 	url := fmt.Sprintf("%s?name=%s&type=%s", dohURL, domain, queryType)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

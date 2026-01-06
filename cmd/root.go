@@ -8,19 +8,20 @@ import (
 )
 
 var (
-	whoisFlag  bool
-	jsonFlag   bool
-	appVersion string
-	appCommit  string
+	whoisFlag    bool
+	jsonFlag     bool
+	providerFlag string
+	appVersion   string
+	appCommit    string
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "doh",
-	Short: "Simple DNS over HTTPS cli client for cloudflare",
+	Short: "Simple DNS over HTTPS cli client",
 	Args:  cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		err := query.Do(args[0], args[1], whoisFlag, jsonFlag)
+		err := query.Do(args[0], args[1], whoisFlag, jsonFlag, providerFlag)
 		if err != nil && jsonFlag {
 			query.OutputJSONError(err)
 			return nil // Prevent Cobra from printing error again
@@ -32,6 +33,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.Flags().BoolVar(&whoisFlag, "whois", false, "perform WHOIS lookup for IP addresses")
 	rootCmd.Flags().BoolVar(&jsonFlag, "json", false, "output results in JSON format")
+	rootCmd.Flags().StringVar(&providerFlag, "provider", query.DefaultProvider, "DNS-over-HTTPS provider (cloudflare, google)")
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
