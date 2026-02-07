@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/mxssl/doh/query"
@@ -25,6 +27,11 @@ var rootCmd = &cobra.Command{
 		if err != nil && jsonFlag {
 			query.OutputJSONError(err)
 			return nil // Prevent Cobra from printing error again
+		}
+		var rcodeErr query.RcodeError
+		if errors.As(err, &rcodeErr) {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", rcodeErr.Error())
+			return nil // Prevent Cobra from printing usage for valid API DNS errors
 		}
 		return err
 	},

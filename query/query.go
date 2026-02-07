@@ -80,6 +80,113 @@ var ipRecordTypes = map[int]bool{
 	28: true, // AAAA record
 }
 
+type rcodeInfo struct {
+	name        string
+	description string
+}
+
+var rcodeByCode = map[int][]rcodeInfo{
+	0: {
+		{name: "NoError", description: "No Error"},
+	},
+	1: {
+		{name: "FormErr", description: "Format Error"},
+	},
+	2: {
+		{name: "ServFail", description: "Server Failure"},
+	},
+	3: {
+		{name: "NXDomain", description: "Non-Existent Domain"},
+	},
+	4: {
+		{name: "NotImp", description: "Not Implemented"},
+	},
+	5: {
+		{name: "Refused", description: "Query Refused"},
+	},
+	6: {
+		{name: "YXDomain", description: "Name Exists when it should not"},
+	},
+	7: {
+		{name: "YXRRSet", description: "RR Set Exists when it should not"},
+	},
+	8: {
+		{name: "NXRRSet", description: "RR Set that should exist does not"},
+	},
+	9: {
+		{name: "NotAuth", description: "Server Not Authoritative for zone"},
+		{name: "NotAuth", description: "Not Authorized"},
+	},
+	10: {
+		{name: "NotZone", description: "Name not contained in zone"},
+	},
+	11: {
+		{name: "DSOTYPENI", description: "DSO-TYPE Not Implemented"},
+	},
+	16: {
+		{name: "BADVERS", description: "Bad OPT Version"},
+		{name: "BADSIG", description: "TSIG Signature Failure"},
+	},
+	17: {
+		{name: "BADKEY", description: "Key not recognized"},
+	},
+	18: {
+		{name: "BADTIME", description: "Signature out of time window"},
+	},
+	19: {
+		{name: "BADMODE", description: "Bad TKEY Mode"},
+	},
+	20: {
+		{name: "BADNAME", description: "Duplicate key name"},
+	},
+	21: {
+		{name: "BADALG", description: "Algorithm not supported"},
+	},
+	22: {
+		{name: "BADTRUNC", description: "Bad Truncation"},
+	},
+	23: {
+		{name: "BADCOOKIE", description: "Bad/missing Server Cookie"},
+	},
+}
+
+func formatRcodeError(code int) string {
+	entries, exists := rcodeByCode[code]
+	if exists {
+		parts := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			parts = append(parts, fmt.Sprintf("%s: %s", entry.name, entry.description))
+		}
+		return fmt.Sprintf("%s (rcode: %d)", strings.Join(parts, " | "), code)
+	}
+
+	if code >= 12 && code <= 15 {
+		return fmt.Sprintf("Unassigned (rcode: %d)", code)
+	}
+	if code >= 24 && code <= 3840 {
+		return fmt.Sprintf("Unassigned (rcode: %d)", code)
+	}
+	if code >= 3841 && code <= 4095 {
+		return fmt.Sprintf("Reserved for Private Use (rcode: %d)", code)
+	}
+	if code >= 4096 && code <= 65534 {
+		return fmt.Sprintf("Unassigned (rcode: %d)", code)
+	}
+	if code == 65535 {
+		return fmt.Sprintf("Reserved, can be allocated by Standards Action (rcode: %d)", code)
+	}
+	return fmt.Sprintf("Unknown (rcode: %d)", code)
+}
+
+// RcodeError indicates a valid DoH API DNS error response.
+type RcodeError struct {
+	Code int
+}
+
+func (e RcodeError) Error() string {
+	return formatRcodeError(e.Code)
+}
+
 func Whois(domain string) (string, error) {
 	client := whois.NewClient()
 	client.SetTimeout(5 * time.Second)
@@ -164,7 +271,7 @@ func Do(queryType string, domain string, enableWhois bool, enableJSON bool, prov
 	}
 
 	if res.Status != 0 {
-		return fmt.Errorf("rcode: %d, check https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6", res.Status)
+		return RcodeError{Code: res.Status}
 	}
 
 	if res.Answer == nil {
