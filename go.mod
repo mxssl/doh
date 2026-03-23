@@ -1,9 +1,9 @@
 module github.com/mxssl/doh
 
-go 1.25
+go 1.25.0
 
 require (
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/likexian/whois v1.15.7
 	github.com/spf13/cobra v1.10.2
 )
@@ -14,5 +14,5 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	golang.org/x/net v0.49.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
 )
