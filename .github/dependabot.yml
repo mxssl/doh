@@ -27,3 +27,7 @@ updates:
       docker:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "golang"
+        versions:
+          - ">= 1.27.rc.1, < 1.27"
