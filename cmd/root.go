@@ -33,7 +33,9 @@ var rootCmd = &cobra.Command{
 			if outputErr := query.OutputTextResponse(rcodeErr.Response); outputErr != nil {
 				return outputErr
 			}
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", rcodeErr.Error())
+			if _, printErr := fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", rcodeErr.Error()); printErr != nil {
+				return printErr
+			}
 			return nil // Prevent Cobra from printing usage for valid API DNS errors
 		}
 		return err
