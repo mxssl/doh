@@ -131,6 +131,9 @@ func TestOutputJSONErrorForRcodeError(t *testing.T) {
 	if strings.Contains(out, `"error_code"`) {
 		t.Fatalf("json output must not contain error_code field: %s", out)
 	}
+	if !strings.Contains(out, `"status": 3`) || !strings.Contains(out, `"status_name": "NXDOMAIN"`) {
+		t.Fatalf("json output missing DNS response status: %s", out)
+	}
 }
 
 func addTestProvider(t *testing.T, url string) string {
@@ -233,7 +236,7 @@ func TestDoNoAnswerTextOutput(t *testing.T) {
 		}
 	})
 
-	if !strings.Contains(out, "There is no such DNS record") {
+	if !strings.Contains(out, "No answer records") {
 		t.Fatalf("unexpected output: %s", out)
 	}
 }
@@ -288,6 +291,9 @@ func TestDoSuccessJSONOutput(t *testing.T) {
 	if rec.Name != "example.com." || rec.Type != 1 || rec.TTL != 120 || rec.Data != "93.184.216.34" {
 		t.Fatalf("unexpected record: %+v", rec)
 	}
+	if rec.TypeName != "A" {
+		t.Fatalf("unexpected record type name; got %q, want A", rec.TypeName)
+	}
 }
 
 func TestDoSuccessTextOutput(t *testing.T) {
@@ -308,7 +314,7 @@ func TestDoSuccessTextOutput(t *testing.T) {
 	if !strings.Contains(out, "name: example.com.") {
 		t.Fatalf("missing record name in output: %s", out)
 	}
-	if !strings.Contains(out, "type: 1") {
+	if !strings.Contains(out, "type: 1 (A)") {
 		t.Fatalf("missing record type in output: %s", out)
 	}
 	if !strings.Contains(out, "ttl: 120") {
@@ -316,5 +322,76 @@ func TestDoSuccessTextOutput(t *testing.T) {
 	}
 	if !strings.Contains(out, "data: 93.184.216.34") {
 		t.Fatalf("missing record data in output: %s", out)
+	}
+}
+
+func TestDoOutputsAllResponseSections(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/dns-json")
+		_, _ = w.Write([]byte(`{
+			"Status": 0,
+			"TC": false,
+			"RD": true,
+			"RA": true,
+			"AD": true,
+			"CD": false,
+			"Question": [{"name":"example.com.","type":15}],
+			"Answer": [{"name":"example.com.","type":15,"TTL":300,"data":"10 mail.example.com."}],
+			"Authority": [{"name":"example.com.","type":6,"TTL":600,"data":"ns.example.com. hostmaster.example.com. 1 2 3 4 5"}],
+			"Additional": [{"name":"mail.example.com.","type":1,"TTL":300,"data":"192.0.2.10"}],
+			"Comment": ["cached response"]
+		}`))
+	}))
+	defer srv.Close()
+
+	provider := addTestProvider(t, srv.URL)
+	out := captureStdout(t, func() {
+		if err := Do("mx", "example.com", false, true, provider); err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+	})
+
+	var got JSONOutput
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", out, err)
+	}
+	if got.Status != 0 || got.StatusName != "NOERROR" {
+		t.Fatalf("unexpected response status: %d (%s)", got.Status, got.StatusName)
+	}
+	if !got.Flags.RecursionDesired || !got.Flags.RecursionAvailable || !got.Flags.AuthenticData {
+		t.Fatalf("unexpected response flags: %+v", got.Flags)
+	}
+	if len(got.Question) != 1 || got.Question[0].TypeName != "MX" {
+		t.Fatalf("unexpected question section: %+v", got.Question)
+	}
+	if len(got.Records) != 1 || got.Records[0].TypeName != "MX" {
+		t.Fatalf("unexpected answer section: %+v", got.Records)
+	}
+	if len(got.Authority) != 1 || got.Authority[0].TypeName != "SOA" {
+		t.Fatalf("unexpected authority section: %+v", got.Authority)
+	}
+	if len(got.Additional) != 1 || got.Additional[0].TypeName != "A" {
+		t.Fatalf("unexpected additional section: %+v", got.Additional)
+	}
+	if len(got.Comments) != 1 || got.Comments[0] != "cached response" {
+		t.Fatalf("unexpected comments: %+v", got.Comments)
+	}
+}
+
+func TestResponseCommentAcceptsStringAndArray(t *testing.T) {
+	for _, input := range []string{`"diagnostic"`, `["diagnostic"]`} {
+		var got responseComment
+		if err := json.Unmarshal([]byte(input), &got); err != nil {
+			t.Fatalf("failed to unmarshal %s: %v", input, err)
+		}
+		if len(got) != 1 || got[0] != "diagnostic" {
+			t.Fatalf("unexpected comment for %s: %+v", input, got)
+		}
+	}
+}
+
+func TestUnknownTypeNameUsesGenericNotation(t *testing.T) {
+	if got, want := dnsTypeName(65400), "TYPE65400"; got != want {
+		t.Fatalf("unexpected unknown type name; got %q, want %q", got, want)
 	}
 }

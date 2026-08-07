@@ -3,6 +3,7 @@ package query
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -24,27 +25,75 @@ type dohResponse struct {
 		Name string `json:"name"`
 		Type int    `json:"type"`
 	} `json:"Question"`
-	Answer []struct {
-		Name string `json:"name"`
-		Type int    `json:"type"`
-		TTL  int    `json:"TTL"`
-		Data string `json:"data"`
-	} `json:"Answer"`
+	Answer     []dohRecord     `json:"Answer"`
+	Authority  []dohRecord     `json:"Authority"`
+	Additional []dohRecord     `json:"Additional"`
+	Comment    responseComment `json:"Comment"`
+}
+
+type dohRecord struct {
+	Name string `json:"name"`
+	Type int    `json:"type"`
+	TTL  int    `json:"TTL"`
+	Data string `json:"data"`
+}
+
+type responseComment []string
+
+func (c *responseComment) UnmarshalJSON(data []byte) error {
+	var comments []string
+	if err := json.Unmarshal(data, &comments); err == nil {
+		*c = comments
+		return nil
+	}
+
+	var comment string
+	if err := json.Unmarshal(data, &comment); err != nil {
+		return fmt.Errorf("invalid DNS response comment: %w", err)
+	}
+	if comment != "" {
+		*c = []string{comment}
+	}
+	return nil
 }
 
 // JSONOutput represents the output structure for JSON format
 type JSONOutput struct {
-	Records []DNSRecord `json:"records,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Status     int           `json:"status"`
+	StatusName string        `json:"status_name"`
+	Flags      DNSFlags      `json:"flags"`
+	Question   []DNSQuestion `json:"question,omitempty"`
+	Records    []DNSRecord   `json:"records,omitempty"`
+	Authority  []DNSRecord   `json:"authority,omitempty"`
+	Additional []DNSRecord   `json:"additional,omitempty"`
+	Comments   []string      `json:"comments,omitempty"`
+	Error      string        `json:"error,omitempty"`
+}
+
+// DNSQuestion represents the question section of a DNS response.
+type DNSQuestion struct {
+	Name     string `json:"name"`
+	Type     int    `json:"type"`
+	TypeName string `json:"type_name"`
+}
+
+// DNSFlags represents the response flags exposed by the DoH JSON APIs.
+type DNSFlags struct {
+	Truncated          bool `json:"tc"`
+	RecursionDesired   bool `json:"rd"`
+	RecursionAvailable bool `json:"ra"`
+	AuthenticData      bool `json:"ad"`
+	CheckingDisabled   bool `json:"cd"`
 }
 
 // DNSRecord represents a single DNS record in JSON output
 type DNSRecord struct {
-	Name  string `json:"name"`
-	Type  int    `json:"type"`
-	TTL   int    `json:"ttl"`
-	Data  string `json:"data"`
-	Whois string `json:"whois,omitempty"`
+	Name     string `json:"name"`
+	Type     int    `json:"type"`
+	TypeName string `json:"type_name"`
+	TTL      int    `json:"ttl"`
+	Data     string `json:"data"`
+	Whois    string `json:"whois,omitempty"`
 }
 
 // Provider URLs for DNS-over-HTTPS
@@ -180,7 +229,8 @@ func formatRcodeError(code int) string {
 
 // RcodeError indicates a valid DoH API DNS error response.
 type RcodeError struct {
-	Code int
+	Code     int
+	Response JSONOutput
 }
 
 func (e RcodeError) Error() string {
@@ -209,24 +259,94 @@ func Whois(domain string) (string, error) {
 
 // OutputJSONError prints an error in JSON format (exported for cmd package)
 func OutputJSONError(err error) {
-	output := JSONOutput{
-		Error: err.Error(),
+	var rcodeErr RcodeError
+	if !errors.As(err, &rcodeErr) {
+		jsonBytes, _ := json.MarshalIndent(struct {
+			Error string `json:"error"`
+		}{Error: err.Error()}, "", "  ")
+		fmt.Println(string(jsonBytes))
+		return
 	}
+	output := rcodeErr.Response
+	if output.StatusName == "" {
+		output.Status = rcodeErr.Code
+		output.StatusName = rcodeName(rcodeErr.Code)
+	}
+	output.Error = err.Error()
 	jsonBytes, _ := json.MarshalIndent(output, "", "  ")
 	fmt.Println(string(jsonBytes))
 }
 
 // outputJSON prints DNS records in JSON format
-func outputJSON(records []DNSRecord) error {
-	output := JSONOutput{
-		Records: records,
-	}
+func outputJSON(output JSONOutput) error {
 	jsonBytes, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
 		return fmt.Errorf("json marshal error: %w", err)
 	}
 	fmt.Println(string(jsonBytes))
 	return nil
+}
+
+func makeDNSRecord(r dohRecord, enableWhois bool) DNSRecord {
+	record := DNSRecord{
+		Name:     r.Name,
+		Type:     r.Type,
+		TypeName: dnsTypeName(r.Type),
+		TTL:      r.TTL,
+		Data:     r.Data,
+	}
+	if enableWhois && ipRecordTypes[r.Type] {
+		if whoisResult, err := Whois(r.Data); err == nil && whoisResult != "" {
+			record.Whois = whoisResult
+		}
+	}
+	return record
+}
+
+func makeDNSRecords(records []dohRecord, enableWhois bool) []DNSRecord {
+	if len(records) == 0 {
+		return nil
+	}
+	result := make([]DNSRecord, 0, len(records))
+	for _, record := range records {
+		result = append(result, makeDNSRecord(record, enableWhois))
+	}
+	return result
+}
+
+func makeJSONOutput(res dohResponse, enableWhois bool) JSONOutput {
+	questions := make([]DNSQuestion, 0, len(res.Question))
+	for _, question := range res.Question {
+		questions = append(questions, DNSQuestion{
+			Name:     question.Name,
+			Type:     question.Type,
+			TypeName: dnsTypeName(question.Type),
+		})
+	}
+
+	return JSONOutput{
+		Status:     res.Status,
+		StatusName: rcodeName(res.Status),
+		Flags: DNSFlags{
+			Truncated:          res.Tc,
+			RecursionDesired:   res.Rd,
+			RecursionAvailable: res.Ra,
+			AuthenticData:      res.Ad,
+			CheckingDisabled:   res.Cd,
+		},
+		Question:   questions,
+		Records:    makeDNSRecords(res.Answer, enableWhois),
+		Authority:  makeDNSRecords(res.Authority, false),
+		Additional: makeDNSRecords(res.Additional, false),
+		Comments:   []string(res.Comment),
+	}
+}
+
+func rcodeName(code int) string {
+	if entries := rcodeByCode[code]; len(entries) != 0 {
+		return strings.ToUpper(entries[0].name)
+	}
+	return "UNKNOWN"
 }
 
 func Do(queryType string, domain string, enableWhois bool, enableJSON bool, provider string) error {
@@ -270,58 +390,56 @@ func Do(queryType string, domain string, enableWhois bool, enableJSON bool, prov
 		return fmt.Errorf("unmarshal error: %w", err)
 	}
 
+	output := makeJSONOutput(res, enableWhois)
 	if res.Status != 0 {
-		return RcodeError{Code: res.Status}
+		return RcodeError{Code: res.Status, Response: output}
 	}
 
-	if res.Answer == nil {
-		if enableJSON {
-			return outputJSON([]DNSRecord{})
-		}
-		fmt.Println("There is no such DNS record")
-		return nil
-	}
-
-	// JSON output mode
 	if enableJSON {
-		var records []DNSRecord
-		for _, r := range res.Answer {
-			record := DNSRecord{
-				Name: r.Name,
-				Type: r.Type,
-				TTL:  r.TTL,
-				Data: r.Data,
-			}
-
-			// Only perform WHOIS lookup for IP address records if enabled
-			if enableWhois && ipRecordTypes[r.Type] {
-				whoisResult, err := Whois(r.Data)
-				if err == nil && whoisResult != "" {
-					record.Whois = whoisResult
-				}
-			}
-
-			records = append(records, record)
-		}
-		return outputJSON(records)
+		return outputJSON(output)
 	}
+	return outputText(output)
+}
 
-	// Colored text output mode (existing code)
+// OutputTextResponse prints a parsed DNS response in human-readable form.
+func OutputTextResponse(output JSONOutput) error {
+	return outputText(output)
+}
+
+func outputText(output JSONOutput) error {
 	green := color.New(color.FgGreen).SprintFunc()
 	blue := color.New(color.FgBlue).SprintFunc()
-	for _, r := range res.Answer {
-		fmt.Printf("%s: %v\n", blue("name"), green(r.Name))
-		fmt.Printf("%s: %v\n", blue("type"), green(r.Type))
-		fmt.Printf("%s: %v\n", blue("ttl"), green(r.TTL))
-		fmt.Printf("%s: %v\n", blue("data"), green(r.Data))
 
-		// Only perform WHOIS lookup for IP address records (A and AAAA) if enabled
-		if enableWhois && ipRecordTypes[r.Type] {
-			whois, err := Whois(r.Data)
-			if err == nil && whois != "" {
-				fmt.Printf("%s: %v\n", blue("whois"), green(whois))
-			}
-		}
+	hasOtherSections := len(output.Authority) > 0 || len(output.Additional) > 0 || len(output.Comments) > 0
+	if len(output.Records) == 0 {
+		fmt.Println("No answer records")
+	} else if hasOtherSections {
+		fmt.Println(blue("answer:"))
+	}
+	printRecords(output.Records, blue, green)
+
+	if len(output.Authority) > 0 {
+		fmt.Println(blue("authority:"))
+		printRecords(output.Authority, blue, green)
+	}
+	if len(output.Additional) > 0 {
+		fmt.Println(blue("additional:"))
+		printRecords(output.Additional, blue, green)
+	}
+	for _, comment := range output.Comments {
+		fmt.Printf("%s: %v\n", blue("comment"), green(comment))
 	}
 	return nil
+}
+
+func printRecords(records []DNSRecord, blue, green func(a ...interface{}) string) {
+	for _, r := range records {
+		fmt.Printf("%s: %v\n", blue("name"), green(r.Name))
+		fmt.Printf("%s: %v\n", blue("type"), green(fmt.Sprintf("%d (%s)", r.Type, r.TypeName)))
+		fmt.Printf("%s: %v\n", blue("ttl"), green(r.TTL))
+		fmt.Printf("%s: %v\n", blue("data"), green(r.Data))
+		if r.Whois != "" {
+			fmt.Printf("%s: %v\n", blue("whois"), green(r.Whois))
+		}
+	}
 }
