@@ -63,7 +63,7 @@ doh [flags] [query type] [domain name]
 ```bash
 $ doh a google.com
 name: google.com
-type: 1
+type: 1 (A)
 ttl: 291
 data: 142.250.200.78
 ```
@@ -73,7 +73,7 @@ data: 142.250.200.78
 ```bash
 $ doh a google.com --provider google
 name: google.com.
-type: 1
+type: 1 (A)
 ttl: 300
 data: 142.250.184.14
 ```
@@ -83,7 +83,7 @@ data: 142.250.184.14
 ```bash
 $ doh a google.com --whois
 name: google.com
-type: 1
+type: 1 (A)
 ttl: 291
 data: 142.250.200.78
 whois: Google LLC
@@ -94,10 +94,27 @@ whois: Google LLC
 ```bash
 $ doh --json a google.com
 {
+  "status": 0,
+  "status_name": "NOERROR",
+  "flags": {
+    "tc": false,
+    "rd": true,
+    "ra": true,
+    "ad": false,
+    "cd": false
+  },
+  "question": [
+    {
+      "name": "google.com.",
+      "type": 1,
+      "type_name": "A"
+    }
+  ],
   "records": [
     {
       "name": "google.com",
       "type": 1,
+      "type_name": "A",
       "ttl": 115,
       "data": "142.251.36.14"
     }
@@ -110,10 +127,27 @@ $ doh --json a google.com
 ```bash
 $ doh --json --whois a google.com
 {
+  "status": 0,
+  "status_name": "NOERROR",
+  "flags": {
+    "tc": false,
+    "rd": true,
+    "ra": true,
+    "ad": false,
+    "cd": false
+  },
+  "question": [
+    {
+      "name": "google.com.",
+      "type": 1,
+      "type_name": "A"
+    }
+  ],
   "records": [
     {
       "name": "google.com",
       "type": 1,
+      "type_name": "A",
       "ttl": 47,
       "data": "142.250.179.206",
       "whois": "Google LLC"
@@ -121,3 +155,7 @@ $ doh --json --whois a google.com
   ]
 }
 ```
+
+JSON output also includes the DNS response status, flags, question, authority,
+additional, and comment sections when provided by the resolver. The `records`
+field remains the answer section for backward compatibility.

@@ -30,7 +30,12 @@ var rootCmd = &cobra.Command{
 		}
 		var rcodeErr query.RcodeError
 		if errors.As(err, &rcodeErr) {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", rcodeErr.Error())
+			if outputErr := query.OutputTextResponse(rcodeErr.Response); outputErr != nil {
+				return outputErr
+			}
+			if _, printErr := fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", rcodeErr.Error()); printErr != nil {
+				return printErr
+			}
 			return nil // Prevent Cobra from printing usage for valid API DNS errors
 		}
 		return err
