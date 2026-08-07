@@ -412,6 +412,28 @@ func TestDoSuccessTextOutput(t *testing.T) {
 	}
 }
 
+func TestTextOutputSeparatesMultipleAnswerRecords(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/dns-json")
+		_, _ = w.Write([]byte(`{"Status":0,"Answer":[
+			{"name":"example.com.","type":1,"TTL":120,"data":"192.0.2.1"},
+			{"name":"example.com.","type":1,"TTL":120,"data":"192.0.2.2"}
+		]}`))
+	}))
+	defer srv.Close()
+
+	provider := addTestProvider(t, srv.URL)
+	out := captureStdout(t, func() {
+		if err := Do("A", "example.com", false, false, provider); err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+	})
+
+	if !strings.Contains(out, "data: 192.0.2.1\n\nname: example.com.") {
+		t.Fatalf("expected a blank line between answer records: %q", out)
+	}
+}
+
 func TestDoOutputsAllResponseSections(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/dns-json")

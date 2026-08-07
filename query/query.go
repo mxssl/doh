@@ -437,7 +437,10 @@ func outputText(output JSONOutput) error {
 }
 
 func printRecords(records []DNSRecord, blue, green func(a ...interface{}) string) {
-	for _, r := range records {
+	for i, r := range records {
+		if i > 0 {
+			fmt.Println()
+		}
 		fmt.Printf("%s: %v\n", blue("name"), green(r.Name))
 		fmt.Printf("%s: %v\n", blue("type"), green(fmt.Sprintf("%d (%s)", r.Type, r.TypeName)))
 		fmt.Printf("%s: %v\n", blue("ttl"), green(r.TTL))
