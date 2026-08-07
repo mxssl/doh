@@ -245,6 +245,10 @@ func Whois(domain string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return whoisOrganization(result)
+}
+
+func whoisOrganization(result string) (string, error) {
 	lines := strings.Split(result, "\n")
 	for _, line := range lines {
 		if strings.HasPrefix(line, "OrgName:") {

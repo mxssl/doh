@@ -13,6 +13,22 @@ import (
 	"testing"
 )
 
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+type errorReadCloser struct{}
+
+func (errorReadCloser) Read([]byte) (int, error) {
+	return 0, errors.New("read failed")
+}
+
+func (errorReadCloser) Close() error {
+	return nil
+}
+
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 
@@ -136,6 +152,20 @@ func TestOutputJSONErrorForRcodeError(t *testing.T) {
 	}
 }
 
+func TestOutputJSONErrorForTransportError(t *testing.T) {
+	out := captureStdout(t, func() {
+		OutputJSONError(errors.New("transport failed"))
+	})
+
+	var got map[string]any
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("expected valid json, got %q: %v", out, err)
+	}
+	if got["error"] != "transport failed" || len(got) != 1 {
+		t.Fatalf("unexpected error output: %v", got)
+	}
+}
+
 func addTestProvider(t *testing.T, url string) string {
 	t.Helper()
 
@@ -173,6 +203,63 @@ func TestDoReturnsRcodeError(t *testing.T) {
 	}
 	if rcodeErr.Code != 3 {
 		t.Fatalf("unexpected rcode value; got %d, want %d", rcodeErr.Code, 3)
+	}
+	if rcodeErr.Response.Status != 3 || rcodeErr.Response.StatusName != "NXDOMAIN" {
+		t.Fatalf("unexpected response on rcode error: %+v", rcodeErr.Response)
+	}
+}
+
+func TestDoBuildsProviderRequest(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got, want := r.URL.Query().Get("name"), "example.com"; got != want {
+			t.Errorf("unexpected query name; got %q, want %q", got, want)
+		}
+		if got, want := r.URL.Query().Get("type"), "HTTPS"; got != want {
+			t.Errorf("unexpected query type; got %q, want %q", got, want)
+		}
+		if got, want := r.Header.Get("Accept"), "application/dns-json"; got != want {
+			t.Errorf("unexpected Accept header; got %q, want %q", got, want)
+		}
+		w.Header().Set("Content-Type", "application/dns-json")
+		_, _ = w.Write([]byte(`{"Status":0}`))
+	}))
+	defer srv.Close()
+
+	provider := addTestProvider(t, srv.URL)
+	_ = captureStdout(t, func() {
+		if err := Do("HTTPS", "example.com", false, false, provider); err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+	})
+}
+
+func TestDoRequestError(t *testing.T) {
+	oldClient := http.DefaultClient
+	http.DefaultClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("connection failed")
+	})}
+	t.Cleanup(func() { http.DefaultClient = oldClient })
+
+	err := Do("A", "example.com", false, false, DefaultProvider)
+	if err == nil || !strings.Contains(err.Error(), "request do error") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestDoReadBodyError(t *testing.T) {
+	oldClient := http.DefaultClient
+	http.DefaultClient = &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       errorReadCloser{},
+			Header:     make(http.Header),
+		}, nil
+	})}
+	t.Cleanup(func() { http.DefaultClient = oldClient })
+
+	err := Do("A", "example.com", false, false, DefaultProvider)
+	if err == nil || !strings.Contains(err.Error(), "read body error") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -387,6 +474,76 @@ func TestResponseCommentAcceptsStringAndArray(t *testing.T) {
 		if len(got) != 1 || got[0] != "diagnostic" {
 			t.Fatalf("unexpected comment for %s: %+v", input, got)
 		}
+	}
+}
+
+func TestResponseCommentHandlesEmptyAndInvalidValues(t *testing.T) {
+	var empty responseComment
+	if err := json.Unmarshal([]byte(`""`), &empty); err != nil {
+		t.Fatalf("failed to unmarshal empty comment: %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("expected no comments, got %+v", empty)
+	}
+
+	var invalid responseComment
+	if err := json.Unmarshal([]byte(`{"message":"bad"}`), &invalid); err == nil {
+		t.Fatal("expected invalid comment shape to fail")
+	}
+}
+
+func TestOutputTextResponseIncludesAllSections(t *testing.T) {
+	output := JSONOutput{
+		Records:    []DNSRecord{{Name: "example.com.", Type: 15, TypeName: "MX", TTL: 300, Data: "10 mail.example.com."}},
+		Authority:  []DNSRecord{{Name: "example.com.", Type: 6, TypeName: "SOA", TTL: 600, Data: "ns.example.com. hostmaster.example.com. 1 2 3 4 5"}},
+		Additional: []DNSRecord{{Name: "mail.example.com.", Type: 1, TypeName: "A", TTL: 300, Data: "192.0.2.10", Whois: "Example Org"}},
+		Comments:   []string{"cached response"},
+	}
+
+	out := captureStdout(t, func() {
+		if err := OutputTextResponse(output); err != nil {
+			t.Fatalf("expected nil error, got %v", err)
+		}
+	})
+	for _, expected := range []string{
+		"answer:", "type: 15 (MX)", "authority:", "type: 6 (SOA)",
+		"additional:", "type: 1 (A)", "whois: Example Org", "comment: cached response",
+	} {
+		if !strings.Contains(out, expected) {
+			t.Fatalf("output missing %q: %s", expected, out)
+		}
+	}
+}
+
+func TestWhoisOrganization(t *testing.T) {
+	tests := []struct {
+		name   string
+		result string
+		want   string
+	}{
+		{name: "ARIN", result: "NetRange: 192.0.2.0 - 192.0.2.255\nOrgName: Example Org\n", want: "Example Org"},
+		{name: "RIPE", result: "inetnum: 192.0.2.0/24\norg-name: Example Europe\n", want: "Example Europe"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := whoisOrganization(tt.result)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.want {
+				t.Fatalf("unexpected organization; got %q, want %q", got, tt.want)
+			}
+		})
+	}
+
+	if _, err := whoisOrganization("no organization here"); err == nil {
+		t.Fatal("expected missing organization error")
+	}
+}
+
+func TestRcodeNameUnknown(t *testing.T) {
+	if got, want := rcodeName(65400), "UNKNOWN"; got != want {
+		t.Fatalf("unexpected rcode name; got %q, want %q", got, want)
 	}
 }
 
