@@ -7,8 +7,8 @@ Simple DNS over HTTPS cli client
 ### Linux amd64
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.22/doh_linux_amd64.tar.gz
-tar zvxf doh_linux_amd64.tar.gz
+curl -fLO https://github.com/mxssl/doh/releases/latest/download/doh_linux_amd64.tar.gz
+tar xzf doh_linux_amd64.tar.gz doh
 sudo mv doh /usr/local/bin/doh
 rm doh_linux_amd64.tar.gz
 ```
@@ -16,8 +16,8 @@ rm doh_linux_amd64.tar.gz
 ### Linux arm64
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.22/doh_linux_arm64.tar.gz
-tar zvxf doh_linux_arm64.tar.gz
+curl -fLO https://github.com/mxssl/doh/releases/latest/download/doh_linux_arm64.tar.gz
+tar xzf doh_linux_arm64.tar.gz doh
 sudo mv doh /usr/local/bin/doh
 rm doh_linux_arm64.tar.gz
 ```
@@ -25,8 +25,8 @@ rm doh_linux_arm64.tar.gz
 ### MacOS arm64 (Apple Silicon)
 
 ```bash
-curl -LO https://github.com/mxssl/doh/releases/download/v0.0.22/doh_darwin_arm64.tar.gz
-tar zvxf doh_darwin_arm64.tar.gz
+curl -fLO https://github.com/mxssl/doh/releases/latest/download/doh_darwin_arm64.tar.gz
+tar xzf doh_darwin_arm64.tar.gz doh
 sudo mv doh /usr/local/bin/doh
 rm doh_darwin_arm64.tar.gz
 ```
